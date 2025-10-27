@@ -1385,7 +1385,7 @@ class Knowledge:
         self,
         query: str,
         max_results: Optional[int] = None,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: Optional[Any] = None,
         search_type: Optional[str] = None,
     ) -> List[Document]:
         """Returns relevant documents matching a query"""
@@ -1452,32 +1452,33 @@ class Knowledge:
         self.valid_metadata_filters.update(self._get_filters_from_db)
         return self.valid_metadata_filters
 
-    def validate_filters(self, filters: Optional[Dict[str, Any]]) -> Tuple[Dict[str, Any], List[str]]:
-        if self.valid_metadata_filters is None:
-            self.valid_metadata_filters = set()
-        self.valid_metadata_filters.update(self._get_filters_from_db)
-
-        if not filters:
-            return {}, []
-
+    def validate_filters(self, filters: Optional[Any]) -> Tuple[Dict[str, Any], List[str]]:
         valid_filters: Dict[str, Any] = {}
         invalid_keys = []
+        if isinstance(filters, dict):
+            if self.valid_metadata_filters is None:
+                self.valid_metadata_filters = set()
+            self.valid_metadata_filters.update(self._get_filters_from_db)
 
-        # If no metadata filters tracked yet, all keys are considered invalid
-        if self.valid_metadata_filters is None:
-            invalid_keys = list(filters.keys())
-            log_debug(f"No valid metadata filters tracked yet. All filter keys considered invalid: {invalid_keys}")
-            return {}, invalid_keys
+            if not filters:
+                return {}, []
 
-        for key, value in filters.items():
-            # Handle both normal keys and prefixed keys like meta_data.key
-            base_key = key.split(".")[-1] if "." in key else key
-            if base_key in self.valid_metadata_filters or key in self.valid_metadata_filters:
-                valid_filters[key] = value
-            else:
-                invalid_keys.append(key)
-                log_debug(f"Invalid filter key: {key} - not present in knowledge base")
+            # If no metadata filters tracked yet, all keys are considered invalid
+            if self.valid_metadata_filters is None:
+                invalid_keys = list(filters.keys())
+                log_debug(f"No valid metadata filters tracked yet. All filter keys considered invalid: {invalid_keys}")
+                return {}, invalid_keys
 
+            for key, value in filters.items():
+                # Handle both normal keys and prefixed keys like meta_data.key
+                base_key = key.split(".")[-1] if "." in key else key
+                if base_key in self.valid_metadata_filters or key in self.valid_metadata_filters:
+                    valid_filters[key] = value
+                else:
+                    invalid_keys.append(key)
+                    log_debug(f"Invalid filter key: {key} - not present in knowledge base")
+        elif isinstance(filters, list):
+            print("FILTERS ARE A LIST")
         return valid_filters, invalid_keys
 
     def add_filters(self, metadata: Dict[str, Any]) -> None:
